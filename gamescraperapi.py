@@ -102,30 +102,41 @@ def html_cleaning(summary, game_id):
 
             
 def main():
+
+    # Read in scraped average values
     gs_df = pd.read_csv('game_prices.csv')
     gs_df = DataFrame(gs_df)
-    # Data cleaning
-    #print(len(gs_df))
-    gs_df = gs_df.dropna(subset=['loose_val','complete_val', 'new_val'])
-    #print(len(gs_df))
 
+    
+    # Data cleaning
+    gs_df = gs_df.dropna(subset=['loose_val','complete_val', 'new_val'])
+
+    # Create column for the game title portion of the 'url' (created from game title)
     gs_df['game_url'] = gs_df['game'].str.lower()
     gs_df['game_url'] = gs_df['game_url'].str.replace(' ', '-')
     gs_df['game_url'] = gs_df['game_url'].str.replace("[:\[\].#?]",'',regex=True).str.replace('amp;','')
-    #print(gs_df['game'].head(20))
-    # Url creation
+
+    # Combine with the base pricecharting.com base url for the completed url
     console_game_list = list(zip(gs_df['console'], gs_df['game_url']))
     base_pc_url = 'https://www.pricecharting.com/game/'
     url_list = []
     for tpl in console_game_list:
         url = base_pc_url + f'{tpl[0]}' + '/' + f'{tpl[1]}'
         url_list.append(url)
-    #print(url_list[:10])
+    
+    # Create 'url' and a 'game_id' column
     gs_df['url'] = url_list
-    #print(gs_df.head())
     gs_df['game_id'] = range(len(gs_df))
     gs_df['game_id'] += 1
-    #print(gs_df.head())
+
+    # Create a new DataFrame with unique values of Console
+    console_df = pd.DataFrame({'console': gs_df['console'].unique()})
+    console_df['console_id'] = pd.factorize(console_df['console'])[0]
+
+    # Map console ID to the original dataframe (Normalize for optimization)
+    id_map = console_df.set_index('console')['console_id']
+    gs_df = gs_df.rename(columns={'console': 'console_id'})
+    gs_df['console_id'] = console_df['console_id'].map(id_map)
 
 
     # Connect to postgresSql
@@ -144,32 +155,54 @@ def main():
         result = cursor.fetchone()
         print("The version of PostgreSQL is:", result)
 
+# Create the table that holds console name information
+        query = '''
+                    DROP TABLE IF EXISTS consoles;
+                    CREATE TABLE consoles
+                    (console_id integer PRIMARY KEY,
+                    console varchar
+                    );
+                '''
+        cursor.execute(query)
+
+        print('The consoles df has been created successfully')
+
+        values = zip(console_df['console_id'], console_df['console'])
+        query = '''
+                    INSERT INTO
+                    consoles (console_id, console)
+                    VALUES (%s, %s)
+                    ;
+                '''
+        cursor.executemany(query, values)
+        print('Inserted records into consoles')
+
 # Creation of the table for Avg game prices
 
         query = '''
                     DROP TABLE IF EXISTS avg_game_prices;
                     CREATE TABLE avg_game_prices
                     (game_id integer PRIMARY KEY,
-                    console varchar,
+                    console_id integer,
                     loose_val money,
                     complete_val money,
                     new_val money,
                     date_scraped varchar,
                     game_url varchar,
-                    url varchar );
+                    url varchar,
+                    FOREIGN KEY (console_id) REFERENCES consoles (console_id)
+                    );
                 '''
         
         cursor.execute(query)
 
         print('The avg_game_prices table has been created successfully')
 
-        values = zip(gs_df['game_id'], gs_df["console"], gs_df["loose_val"], gs_df["complete_val"], gs_df["new_val"], gs_df["date(D/M/Y)"], gs_df["game_url"], gs_df["url"])
+        values = zip(gs_df['game_id'], gs_df["console_id"], gs_df["loose_val"], gs_df["complete_val"], gs_df["new_val"], gs_df["date(D/M/Y)"], gs_df["game_url"], gs_df["url"])
 
-        #for i in range(len(gs_df)):
-        #    values = zip(gs_df['game_id'][i], gs_df["console"][i], gs_df["loose_val"][i], gs_df["complete_val"][i], gs_df["new_val"][i], gs_df["date(D/M/Y)"][i], gs_df["game_url"][i], gs_df["url"][i])
         query = '''
                 INSERT INTO
-                avg_game_prices (game_id, console, loose_val, complete_val, new_val, date_scraped, game_url, url)
+                avg_game_prices (game_id, console_id, loose_val, complete_val, new_val, date_scraped, game_url, url)
                 VALUES (%s, %s, %s, %s, %s, %s, %s,%s)
                 ;
                 '''
@@ -218,14 +251,36 @@ def main():
         loose_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
         cib_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
         new_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
-        for i in range(3):
+        for i in range(len(gs_df)):
             url = gs_df['url'][i]
             id = gs_df['game_id'][i]
             l_df, c_df, n_df = indivgamescraper(url, id)
             loose_df = pd.concat([loose_df, l_df])
             cib_df = pd.concat([cib_df, c_df])
             new_df = pd.concat([new_df, n_df])
-        print(loose_df.head(), '\n',cib_df.head(), '\n', new_df.head())
+        values = zip(loose_df['date'], loose_df['price_sold'], loose_df['game_id'])
+        query = '''
+                INSERT INTO loose_game prices (date_sold, price_sold, game_id)
+                VALUES (%s, %s, %s)
+                '''
+        cursor.executemany(query, values)
+        print('Inserted values into loose_game_prices')
+
+        values = zip(cib_df['date'], cib_df['price_sold'], cib_df['game_id'])
+        query = '''
+                INSERT INTO cib_game prices (date_sold, price_sold, game_id)
+                VALUES (%s, %s, %s)
+                '''
+        cursor.executemany(query, values)
+        print('Inserted values into cib_game_prices')
+
+        values = zip(new_df['date'], new_df['price_sold'], new_df['game_id'])
+        query = '''
+                INSERT INTO new_game prices (date_sold, price_sold, game_id)
+                VALUES (%s, %s, %s)
+                '''
+        cursor.executemany(query, values)
+        print('Inserted values into new_game_prices')
 
         #make the changes to the database persistent
         conn.commit()
