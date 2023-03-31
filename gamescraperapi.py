@@ -262,6 +262,7 @@ def main():
         query = '''
                 INSERT INTO loose_game prices (date_sold, price_sold, game_id)
                 VALUES (%s, %s, %s)
+                ;
                 '''
         cursor.executemany(query, values)
         print('Inserted values into loose_game_prices')
@@ -270,6 +271,7 @@ def main():
         query = '''
                 INSERT INTO cib_game prices (date_sold, price_sold, game_id)
                 VALUES (%s, %s, %s)
+                ;
                 '''
         cursor.executemany(query, values)
         print('Inserted values into cib_game_prices')
@@ -278,6 +280,7 @@ def main():
         query = '''
                 INSERT INTO new_game prices (date_sold, price_sold, game_id)
                 VALUES (%s, %s, %s)
+                ;
                 '''
         cursor.executemany(query, values)
         print('Inserted values into new_game_prices')
