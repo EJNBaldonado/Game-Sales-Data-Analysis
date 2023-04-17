@@ -1,2 +1,8 @@
 # ignore login information in .txt file
 postgreslogin.py
+Python Game Data Analysis/
+VideoGameSalesAnalysis.py
+VideoGameSalesAnalysis/
+__pycache__/
+gamescraperapi1.py
+indivgamescraper.py
