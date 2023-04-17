@@ -1,2 +1,2 @@
 # ignore login information in .txt file
-postgreslogin.txt
+postgreslogin.py
