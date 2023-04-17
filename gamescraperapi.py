@@ -399,7 +399,7 @@ def main():
     for console_id, console_df in gs_df.groupby('console_id'):
         console_dataframes[console_id] = console_df
     
-    # Update the console tables
+    # Update the dataframe for each console
     for console_id, console_df in console_dataframes.items():
         update_recent_sales_tables(cursor, console_df)
 
