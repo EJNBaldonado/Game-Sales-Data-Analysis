@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Select Game</title>
+</head>
+<body>
+    <form method="POST">
+        <label for="game">Select game:</label>
+        <select name="game_id" id="game">
+            <option value="">-- Select game --</option>
+            {% for game in games %}
+            <option value="{{ game[0] }}">{{ game[6] }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>

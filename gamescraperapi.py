@@ -56,6 +56,7 @@ def clean_game_prices(gs_df):
     clean_df.loc[clean_df['game_id'] == 3913, 'url'] = 'https://www.pricecharting.com/game/gameboy-advance/ique-gameboy-advance'
     clean_df.loc[clean_df['game_id'] == 6769, 'url'] = 'https://www.pricecharting.com/game/wii/the-$1,000,000-pyramid'
     clean_df.loc[clean_df['game_id'] == 6932, 'url'] = 'https://www.pricecharting.com/game/nintendo-ds/black-reshiram-&-zekrom-edition-nintendo-dsi'
+    clean_df.loc[clean_df['game_id'] == 4193, 'url'] = 'https://www.pricecharting.com/game/gameboy-advance/disney%27s-atlantis-the-lost-empire'
     return clean_df
     
 
@@ -163,7 +164,8 @@ def html_cleaning(summary, game_id):
             cleanerdata.append(item)
     cleandata = []
     for item in cleanerdata:
-        if 'Report It' not in item:
+        #if 'Report It' not in item:
+        if 'Report' not in item and 'It' not in item:
             cleandata.append(item)
 
     # Create the dataframe
@@ -183,6 +185,17 @@ def html_cleaning(summary, game_id):
     game_sales_df = pd.concat([date , price], axis=1)
     game_sales_df.columns = ['date','price_sold']
     game_sales_df['game_id'] = game_id
+
+    # EVERY TIME THERE IS A 'Private Sale' the following rows swap the date and price_sold
+    # After 'private_sold' drop nan values and swap 'price_sold' and 'date' columns for all rows after the dropped rows
+    if game_sales_df['price_sold'].eq('Private Sale').any():
+        mask = game_sales_df.index > game_sales_df[game_sales_df['price_sold'] == 'Private Sale'].index.max()
+        game_sales_df.loc[mask, ['date', 'price_sold']] = game_sales_df.loc[mask, ['price_sold', 'date']].values
+        # Select rows with 'Private Sale' in 'price_sold' column and drop them
+        game_sales_df = game_sales_df.drop(game_sales_df[game_sales_df['price_sold'] == 'Private Sale'].index)
+        game_sales_df = game_sales_df.dropna(axis=0)  # remove rows with nan values in 'price_sold' column
+        game_sales_df['price_sold'] = game_sales_df['price_sold'].str.replace('$', '', regex=True)  # remove '$' sign from 'price_sold' column
+        print(game_sales_df.to_string(index=False))
 
     return game_sales_df
 
@@ -340,10 +353,11 @@ def create_recent_sales_tables(cursor):
         print('Fail to execute due to the error:', e) 
 
 def update_recent_sales_tables(cursor, console_df):
-    loose_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
-    cib_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
-    new_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
+
     for i in range(len(console_df)):
+        loose_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
+        cib_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
+        new_df = pd.DataFrame(columns=['date', 'price_sold', 'game_id'])
         time.sleep(1)
         url = console_df.iloc[i]['url']
         id = console_df.iloc[i]['game_id']
@@ -353,32 +367,61 @@ def update_recent_sales_tables(cursor, console_df):
         loose_df = pd.concat([loose_df, l_df])
         cib_df = pd.concat([cib_df, c_df])
         new_df = pd.concat([new_df, n_df])
-    values = zip(loose_df['date'], loose_df['price_sold'], loose_df['game_id'])
-    query = '''
-            INSERT INTO loose_game_prices (date_sold, price_sold, game_id)
-            VALUES (%s, %s, %s)
-            ;
-            '''
-    cursor.executemany(query, values)
-    print('Inserted values into loose_game_prices')
+        try: 
+            values = zip(loose_df['date'], loose_df['price_sold'], loose_df['game_id'])
+            query = '''
+                    INSERT INTO loose_game_prices (date_sold, price_sold, game_id)
+                    VALUES (%s, %s, %s)
+                    ;
+                    '''
+            cursor.executemany(query, values)
 
-    values = zip(cib_df['date'], cib_df['price_sold'], cib_df['game_id'])
-    query = '''
-            INSERT INTO cib_game_prices (date_sold, price_sold, game_id)
-            VALUES (%s, %s, %s)
-            ;
-            '''
-    cursor.executemany(query, values)
-    print('Inserted values into cib_game_prices')
+            values = zip(cib_df['date'], cib_df['price_sold'], cib_df['game_id'])
+            query = '''
+                    INSERT INTO cib_game_prices (date_sold, price_sold, game_id)
+                    VALUES (%s, %s, %s)
+                    ;
+                    '''
+            cursor.executemany(query, values)
 
-    values = zip(new_df['date'], new_df['price_sold'], new_df['game_id'])
-    query = '''
-            INSERT INTO new_game_prices (date_sold, price_sold, game_id)
-            VALUES (%s, %s, %s)
-            ;
-            '''
-    cursor.executemany(query, values)
-    print('Inserted values into new_game_prices')
+            values = zip(new_df['date'], new_df['price_sold'], new_df['game_id'])
+            query = '''
+                    INSERT INTO new_game_prices (date_sold, price_sold, game_id)
+                    VALUES (%s, %s, %s)
+                    ;
+                    '''
+            cursor.executemany(query, values)
+        except psycopg2.Error as e:
+            print('Fail to execute due to the error:', e, '\n On game id:', id)
+            # continue loop // now it should exit as you don't want to commit any changes to the db if there's an error
+            exit()
+
+
+
+def choose_console_update(cursor, console_dataframes):
+    console_dict = {
+        'wii-u': 0,
+        'nintendo-switch': 1,
+        'gameboy': 2,
+        'super-nintendo': 3,
+        'nes': 4,
+        'nintendo-64': 5,
+        'gameboy-advance': 6,
+        'gamecube': 7,
+        'wii': 8,
+        'nintendo-ds': 9
+    }
+
+    while True:
+        selection = input("Select what console library you wish to update by entering a number from 0-9: ")
+        if selection.isdigit() and int(selection) in range(10):
+            console_id = int(selection)
+            console = list(console_dict.keys())[list(console_dict.values()).index(console_id)]
+            print(f"You have selected {console}.")
+            update_recent_sales_tables(cursor, console_dataframes[console_id])
+            break
+        else:
+            print("Invalid input. Please select a console by entering a number from 0-9.")
 
 
 
@@ -387,22 +430,24 @@ def main():
     gs_df = clean_game_prices(gs_df)
     console_df = create_console_df(gs_df)
     gs_df = add_console_id(gs_df, console_df)
-    conn, cursor =create_connection(un, pw, port, db_name)  
-    create_console_table(cursor)
-    insert_console_values(cursor, console_df)
-    create_avg_game_prices_table(cursor)
-    insert_avg_game_prices_values(cursor, gs_df)
-    create_recent_sales_tables(cursor)
-
+    conn, cursor = create_connection(un, pw, port, db_name)  
+    # create_console_table(cursor)
+    # insert_console_values(cursor, console_df)
+    # create_avg_game_prices_table(cursor)
+    # insert_avg_game_prices_values(cursor, gs_df)
+    # create_recent_sales_tables(cursor)
+    
     # Group the data by console_id and create a dictionary of dataframes
     console_dataframes = {}
     for console_id, console_df in gs_df.groupby('console_id'):
         console_dataframes[console_id] = console_df
     
-    # Update the dataframe for each console
+    # Update the dataframe for a selected console
+    choose_console_update(cursor, console_dataframes)
+    '''
     for console_id, console_df in console_dataframes.items():
         update_recent_sales_tables(cursor, console_df)
-
+    '''
 
     # Make the changes to the database persistent
     conn.commit()

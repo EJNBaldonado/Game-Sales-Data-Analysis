@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Prices</title>
+</head>
+<body>
+    {% if loose_prices %}
+    <h2>Loose Prices</h2>
+    <table>
+        <tr>
+            <th>Date</th>
+            <th>Price</th>
+        </tr>
+        {% for price in loose_prices %}
+        <tr>
+            <td>{{ price[1] }}</td>
+            <td>{{ price[2] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if new_prices %}
+    <h2>New Prices</h2>
+    <table>
+        <tr>
+            <th>Date</th>
+            <th>Price</th>
+        </tr>
+        {% for price in new_prices %}
+        <tr>
+            <td>{{ price[1] }}</td>
+            <td>{{ price[2] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if cib_prices %}
+    <h2>CIB Prices</h2>
+    <table>
+        <tr>
+            <th>Date</th>
+            <th>Price</th>
+        </tr>
+        {% for price in cib_prices %}
+        <tr>
+            <td>{{ price[1] }}</td>
+            <td>{{ price[2] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+</body>
+</html>

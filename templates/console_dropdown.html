@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Select Console</title>
+</head>
+<body>
+    <form method="POST">
+        <label for="console">Select console:</label>
+        <select name="console_id" id="console">
+            <option value="">-- Select console --</option>
+            {% for console in consoles %}
+            <option value="{{ console[0] }}">{{ console[1] }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>

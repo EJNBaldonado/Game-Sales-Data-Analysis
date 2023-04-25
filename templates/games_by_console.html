@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Games by Console</title>
+  </head>
+  <body>
+    <h1>Select a Console</h1>
+    <form method="POST">
+      <select name="console">
+        {% for console in console_list %}
+        <option value="{{ console[0] }}">{{ console[1] }}</option>
+        {% endfor %}
+      </select>
+      <input type="submit" value="Search">
+    </form>
+    
+    {% if games %}
+    <h2>Games for Console {{ selected_console }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Game ID</th>
+          <th>Loose Value</th>
+          <th>Complete Value</th>
+          <th>New Value</th>
+          <th>Date Scraped</th>
+          <th>URL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for game in games %}
+        <tr>
+          <td>{{ game[0] }}</td>
+          <td>{{ game[1] }}</td>
+          <td>{{ game[2] }}</td>
+          <td>{{ game[3] }}</td>
+          <td>{{ game[4] }}</td>
+          <td>{{ game[5] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </body>
+</html>
