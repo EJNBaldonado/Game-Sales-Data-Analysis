@@ -1,5 +1,8 @@
 
 from flask import Flask, jsonify, request, render_template, redirect, url_for
+import numpy as np
+import plotly.graph_objects as go
+from itertools import groupby
 import psycopg2
 from psycopg2.extras import RealDictCursor
 # Python file that contains variables with a username, password, port # and database name
@@ -107,12 +110,108 @@ def game_dropdown(console_id):
             with conn.cursor() as cur:
                 cur.execute("SELECT * FROM loose_game_prices WHERE game_id = %s;", (game_id,))
                 loose_prices = cur.fetchall()
+                # get game_url by game_id
+                cur.execute("SELECT game_url FROM avg_game_prices WHERE game_id = %s;", (game_id,))
+                game_url = cur.fetchone()[0]
+
+                # create data for the graph
+                x = [price[1] for price in loose_prices]
+                y = [float(price[2].replace('$', '').replace(',', '')) for price in loose_prices]
+                # Group y values by their corresponding x values
+                groups = groupby(zip(x, y), key=lambda pair: pair[0])
+
+                # Calculate the average of each group to get a single y value for each x value
+                x_avg = []
+                y_avg = []
+                for key , group in groups:
+                    group_y = [pair[1] for pair in group]
+                    x_avg.append(key)
+                    y_avg.append(sum(group_y) / len(group_y))
+
+                # create the line graph
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=x_avg, y=y_avg, mode='lines', name='Average'))
+                fig.add_trace(go.Scatter(y=y, x=x, mode='markers', name='Scatter'))
+
+
+                # set the title of the graph to the game_url
+                game_url = game_url.replace('-', ' ')
+                game_url = game_url.title()
+                fig.update_layout(title=game_url, xaxis=dict(title='Date'), yaxis=dict(title='Price sold ($)'))
+                fig.update_yaxes(range=[0, max(y) + 0.05*max(y)])
+
+                # convert the graph to HTML and add it to the div in prices.html
+                loose_graph_html = fig.to_html(full_html=False)
+
                 cur.execute("SELECT * FROM new_game_prices WHERE game_id = %s;", (game_id,))
                 new_prices = cur.fetchall()
+                # get game_url by game_id
+                cur.execute("SELECT game_url FROM avg_game_prices WHERE game_id = %s;", (game_id,))
+                game_url = cur.fetchone()[0]
+
+                # create data for the graph
+                x = [price[1] for price in new_prices]
+                y = [float(price[2].replace('$', '').replace(',', '')) for price in new_prices]
+                # Group y values by their corresponding x values
+                groups = groupby(zip(x, y), key=lambda pair: pair[0])
+
+                # Calculate the average of each group to get a single y value for each x value
+                x_avg = []
+                y_avg = []
+                for key , group in groups:
+                    group_y = [pair[1] for pair in group]
+                    x_avg.append(key)
+                    y_avg.append(sum(group_y) / len(group_y))
+
+                # create the line graph
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=x_avg, y=y_avg, mode='lines', name='Average'))
+                fig.add_trace(go.Scatter(y=y, x=x, mode='markers', name='Scatter'))
+
+                # set the title of the graph to the game_url
+                game_url = game_url.replace('-', ' ')
+                game_url = game_url.title()
+                fig.update_layout(title=game_url, xaxis=dict(title='Date'), yaxis=dict(title='Price sold ($)'))
+                fig.update_yaxes(range=[0, max(y) + 0.05*max(y)])
+
+                # convert the graph to HTML and add it to the div in prices.html
+                new_graph_html = fig.to_html(full_html=False)
+
                 cur.execute("SELECT * FROM cib_game_prices WHERE game_id = %s;", (game_id,))
                 cib_prices = cur.fetchall()
+                # get game_url by game_id
+                cur.execute("SELECT game_url FROM avg_game_prices WHERE game_id = %s;", (game_id,))
+                game_url = cur.fetchone()[0]
 
-            return render_template('prices.html', loose_prices=loose_prices, new_prices=new_prices, cib_prices=cib_prices)
+                # create data for the graph
+                x = [price[1] for price in cib_prices]
+                y = [float(price[2].replace('$', '').replace(',', '')) for price in cib_prices]
+                # Group y values by their corresponding x values
+                groups = groupby(zip(x, y), key=lambda pair: pair[0])
+
+                # Calculate the average of each group to get a single y value for each x value
+                x_avg = []
+                y_avg = []
+                for key , group in groups:
+                    group_y = [pair[1] for pair in group]
+                    x_avg.append(key)
+                    y_avg.append(sum(group_y) / len(group_y))
+
+                # create the line graph
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=x_avg, y=y_avg, mode='lines', name='Average'))
+                fig.add_trace(go.Scatter(y=y, x=x, mode='markers', name='Scatter'))
+
+                # set the title of the graph to the game_url
+                game_url = game_url.replace('-', ' ')
+                game_url = game_url.title()
+                fig.update_layout(title=game_url, xaxis=dict(title='Date'), yaxis=dict(title='Price sold ($)'))
+                fig.update_yaxes(range=[0, max(y) + 0.05*max(y)])
+
+                # convert the graph to HTML and add it to the div in prices.html
+                cib_graph_html = fig.to_html(full_html=False)
+
+            return render_template('prices.html', loose_prices=loose_prices, new_prices=new_prices, cib_prices=cib_prices, loose_graph=loose_graph_html, new_graph=new_graph_html, cib_graph=cib_graph_html)
 
     return render_template('game_dropdown.html', games=games)
 
